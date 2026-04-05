@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestion Lille — Dashboard LMNP</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  body { font-family: 'Inter', sans-serif; background: #f8fafc; }
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+  input[type=number] { -moz-appearance: textfield; }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useMemo, useRef, useCallback } = React;
+
+// ─── ICÔNES SVG INLINE ───────────────────────────────────────────────
+const Icon = ({ d, size = 5, cls = "" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"
+    className={`h-${size} w-${size} ${cls}`}>
+    <path strokeLinecap="round" strokeLinejoin="round" d={d} />
+  </svg>
+);
+
+const ICONS = {
+  building: "M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21",
+  users: "M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z",
+  banknotes: "M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z",
+  chart: "M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z",
+  envelope: "M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75",
+  plus: "M12 4.5v15m7.5-7.5h-15",
+  trash: "M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0",
+  calc: "M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008zm0 2.25h.008v.008H8.25V11.25zm0 2.25h.008v.008H8.25v-.008zm0 2.25h.008v.008H8.25V15.75zm2.25-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V11.25zm0 2.25h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V15.75zm2.25-4.5h.008v.008H12.75v-.008zm0 2.25h.008v.008H12.75V11.25zm0 2.25h.008v.008H12.75v-.008zm0 2.25h.008v.008H12.75V15.75zm2.25-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V11.25zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H18.75v-.008zm0 2.25h.008v.008H18.75V11.25zM8.25 6h7.5v2.25h-7.5V6zM12 2.25c-1.892 0-3.758.11-5.593.322C5.307 2.7 4.5 3.616 4.5 4.558V19.5a2.25 2.25 0 002.25 2.25h10.5a2.25 2.25 0 002.25-2.25V4.558c0-.942-.806-1.858-1.907-2.083A48.716 48.716 0 0012 2.25z",
+  calendar: "M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5",
+  refresh: "M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99",
+  paperclip: "M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13",
+  upload: "M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5",
+  info: "M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z",
+  euro: "M14.25 7.756a4.5 4.5 0 100 8.488M7.5 10.5h5.25m-5.25 3h5.25M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+  download: "M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3",
+  eye: "M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
+  eyeoff: "M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88",
+};
+
+// ─── CONSTANTES ───────────────────────────────────────────────────────
+const KM_RATE_7CV = 0.601;
+
+const DEFAULT_CHARGES = [
+  { label: 'Taxe foncière', value: 1100, defaultValue: 1100 },
+  { label: 'EDF', value: 3000, defaultValue: 3000 },
+  { label: 'EAU', value: 800, defaultValue: 800 },
+  { label: 'Internet', value: 300, defaultValue: 300 },
+  { label: 'Assurance habitation', value: 250, defaultValue: 250 },
+  { label: 'Assurance emprunt', value: 1455.48, defaultValue: 1455.48 },
+  { label: 'CFE', value: 0, defaultValue: 0 },
+  { label: 'Comptabilité', value: 350, defaultValue: 350 },
+];
+
+const INITIAL_TENANTS = [
+  { id: '1', name: 'Jade',    entryDate: '2023-01-01', rentHC1: 461, rentHC2: 461, charges: 60, irl: 141.03, irlDate: '2024-Q3' },
+  { id: '2', name: 'Romance', entryDate: '2023-01-01', rentHC1: 451, rentHC2: 451, charges: 60, irl: 141.03, irlDate: '2024-Q3' },
+  { id: '3', name: 'Satine',  entryDate: '2023-01-01', rentHC1: 441, rentHC2: 441, charges: 60, irl: 141.03, irlDate: '2024-Q3' },
+  { id: '4', name: 'Anaelle', entryDate: '2023-01-01', rentHC1: 451, rentHC2: 451, charges: 60, irl: 141.03, irlDate: '2024-Q3' },
+  { id: '5', name: 'David',   entryDate: '2023-01-01', rentHC1: 450, rentHC2: 450, charges: 60, irl: 141.03, irlDate: '2024-Q3' },
+];
+
+const LOAN_INITIAL = {
+  amount: 224885.55,
+  monthlyPayment: 2701.17,
+  startDate: '2023-01-01',
+  endDate: '2030-02-01',
+  taeg: 0.009,
+};
+
+const INITIAL_AMORTIZATIONS = [
+  { id: 'a1',  type: 'Construction - structure',          annualAmount: 2703,   totalToAmortize: 94605,  startYear: 2022, duration: 35 },
+  { id: 'a2',  type: 'Construction - toiture',            annualAmount: 945,    totalToAmortize: 23625,  startYear: 2022, duration: 25 },
+  { id: 'a3',  type: 'Frais actes (1)',                   annualAmount: 72,     totalToAmortize: 1800,   startYear: 2022, duration: 25 },
+  { id: 'a4',  type: 'Frais actes (2)',                   annualAmount: 48,     totalToAmortize: 1200,   startYear: 2022, duration: 25 },
+  { id: 'a5',  type: 'Frais actes (3)',                   annualAmount: 40,     totalToAmortize: 600,    startYear: 2022, duration: 15 },
+  { id: 'a6',  type: 'Frais actes (4)',                   annualAmount: 79,     totalToAmortize: 1185,   startYear: 2022, duration: 15 },
+  { id: 'a7',  type: 'Frais actes (5)',                   annualAmount: 178,    totalToAmortize: 7120,   startYear: 2022, duration: 40 },
+  { id: 'a8',  type: 'Commission agence (1)',             annualAmount: 82,     totalToAmortize: 2050,   startYear: 2022, duration: 25 },
+  { id: 'a9',  type: 'Commission agence (2)',             annualAmount: 55,     totalToAmortize: 1375,   startYear: 2022, duration: 25 },
+  { id: 'a10', type: 'Commission agence (3)',             annualAmount: 46,     totalToAmortize: 1150,   startYear: 2022, duration: 25 },
+  { id: 'a11', type: 'Commission agence (4)',             annualAmount: 91,     totalToAmortize: 2275,   startYear: 2022, duration: 25 },
+  { id: 'a12', type: 'Commission agence (5)',             annualAmount: 204,    totalToAmortize: 8160,   startYear: 2022, duration: 40 },
+  { id: 'a13', type: 'Inst. agencement construction',    annualAmount: 630,    totalToAmortize: 15750,  startYear: 2022, duration: 25 },
+  { id: 'a14', type: 'Inst. agence qui rénov',           annualAmount: 8500,   totalToAmortize: 68000,  startYear: 2022, duration: 8  },
+  { id: 'a15', type: 'Inst. agence 2M Conseil',          annualAmount: 1030,   totalToAmortize: 8240,   startYear: 2022, duration: 8  },
+  { id: 'a16', type: 'Étanchéité',                       annualAmount: 526,    totalToAmortize: 7890,   startYear: 2022, duration: 15 },
+  { id: 'a17', type: 'Ascenseur',                        annualAmount: 211,    totalToAmortize: 3165,   startYear: 2022, duration: 15 },
+  { id: 'a18', type: 'Agencement',                       annualAmount: 841,    totalToAmortize: 12615,  startYear: 2022, duration: 15 },
+  { id: 'a19', type: 'Premium constr. (1)',               annualAmount: 130,    totalToAmortize: 1300,   startYear: 2022, duration: 10 },
+  { id: 'a20', type: 'Premium constr. (2)',               annualAmount: 474,    totalToAmortize: 4740,   startYear: 2022, duration: 10 },
+  { id: 'a21', type: 'As. bât. (1)',                     annualAmount: 88,     totalToAmortize: 880,    startYear: 2022, duration: 10 },
+  { id: 'a22', type: 'As. bât. (2)',                     annualAmount: 2800.1, totalToAmortize: 28001,  startYear: 2022, duration: 10 },
+  { id: 'a23', type: 'As. bât. (3)',                     annualAmount: 1400,   totalToAmortize: 14000,  startYear: 2022, duration: 10 },
+  { id: 'a24', type: 'Amort. commission agence',         annualAmount: 283.5,  totalToAmortize: 2835,   startYear: 2022, duration: 10 },
+  { id: 'a25', type: 'Amort. mobilier',                  annualAmount: 2000,   totalToAmortize: 10000,  startYear: 2022, duration: 5  },
+  { id: 'a26', type: 'Canapé',                           annualAmount: 93.6,   totalToAmortize: 468,    startYear: 2023, duration: 5  },
+];
+
+// ─── HELPERS ─────────────────────────────────────────────────────────
+const fmt = (n, dec = 0) => Number(n || 0).toLocaleString('fr-FR', { maximumFractionDigits: dec, minimumFractionDigits: dec });
+const uid = () => Math.random().toString(36).substr(2, 9);
+
+// ─── APPLICATION PRINCIPALE ───────────────────────────────────────────
+function App() {
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [yearlyData, setYearlyData] = useState({});
+  const [amortizations, setAmortizations] = useState(INITIAL_AMORTIZATIONS);
+  const [tmi, setTmi] = useState(11);
+  const [showLoanTable, setShowLoanTable] = useState(false);
+  const [showProjection, setShowProjection] = useState(false);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const fileInputRef = useRef(null);
+  const [activeExpenseId, setActiveExpenseId] = useState(null);
+
+  // Persistance localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('lille_v3_data');
+      const savedAmort = localStorage.getItem('lille_v3_amort');
+      const savedTmi = localStorage.getItem('lille_v3_tmi');
+      if (saved) setYearlyData(JSON.parse(saved));
+      if (savedAmort) setAmortizations(JSON.parse(savedAmort));
+      if (savedTmi) setTmi(parseInt(savedTmi));
+    } catch(e) { console.error('Erreur chargement localStorage', e); }
+  }, []);
+
+  useEffect(() => {
+    if (Object.keys(yearlyData).length > 0)
+      localStorage.setItem('lille_v3_data', JSON.stringify(yearlyData));
+  }, [yearlyData]);
+
+  useEffect(() => { localStorage.setItem('lille_v3_amort', JSON.stringify(amortizations)); }, [amortizations]);
+  useEffect(() => { localStorage.setItem('lille_v3_tmi', tmi.toString()); }, [tmi]);
+
+  const getDefaultYearData = (year) => ({
+    year,
+    tenants: INITIAL_TENANTS,
+    charges: DEFAULT_CHARGES.map((c, i) => ({ ...c, id: `c-${i}` })),
+    expenses: [],
+    taxes: 0,
+    km: 3000,
+  });
+
+  const currentData = useMemo(() => {
+    if (!yearlyData[selectedYear]) return getDefaultYearData(selectedYear);
+    return { ...yearlyData[selectedYear], expenses: yearlyData[selectedYear].expenses || [] };
+  }, [selectedYear, yearlyData]);
+
+  const updateYearlyData = (newData, yearOverride) => {
+    const targetYear = yearOverride ?? selectedYear;
+    const targetData = yearlyData[targetYear] ?? getDefaultYearData(targetYear);
+    setYearlyData(prev => ({ ...prev, [targetYear]: { ...targetData, ...newData } }));
+  };
+
+  // ── Overrides tableau de projection ──
+  const handleOverrideChange = (year, field, value) => {
+    const numValue = value === "" ? undefined : parseFloat(value);
+    const existingOverrides = yearlyData[year]?.overrides ?? {};
+    const newOverrides = { ...existingOverrides };
+    if (numValue === undefined) delete newOverrides[field];
+    else newOverrides[field] = numValue;
+    updateYearlyData({ overrides: newOverrides }, year);
+  };
+
+  const clearOverride = (year, field) => handleOverrideChange(year, field, "");
+
+  // ── Dépenses ──
+  const addExpense = () => {
+    const newExpense = {
+      id: uid(), object: 'Nouvelle dépense', provider: '-',
+      amount: 0, date: new Date().toISOString().split('T')[0]
+    };
+    updateYearlyData({ expenses: [...currentData.expenses, newExpense] });
+  };
+
+  const updateExpense = (id, updates) => {
+    const updated = currentData.expenses.map(e => e.id === id ? { ...e, ...updates } : e);
+    updateYearlyData({ expenses: updated });
+  };
+
+  const removeExpense = (id) => {
+    updateYearlyData({ expenses: currentData.expenses.filter(e => e.id !== id) });
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file && activeExpenseId) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        updateExpense(activeExpenseId, { attachmentName: file.name, attachmentData: event.target.result });
+        setActiveExpenseId(null);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const exportToGmail = async (expense) => {
+    const list = expense ? [expense] : currentData.expenses;
+    const year = selectedYear;
+    let summary = `Bonjour,\n\nRécapitulatif des charges Lille (${year}) :\n\n`;
+    list.forEach(e => {
+      summary += `- ${e.date} | ${e.provider} | ${e.object} | ${e.amount}€\n`;
+    });
+    summary += `\nTOTAL : ${list.reduce((acc, e) => acc + (e.amount || 0), 0)}€\n\nCordialement.`;
+    const subject = expense ? `Facture ${expense.provider} - ${expense.object} (${year})` : `Charges Lille ${year}`;
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(summary)}`;
+    window.open(gmailUrl, '_blank');
+  };
+
+  const exportCSV = () => {
+    const rows = [['Date','Fournisseur','Objet','Montant']];
+    currentData.expenses.forEach(e => rows.push([e.date, e.provider, e.object, e.amount]));
+    const csv = rows.map(r => r.join(';')).join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = `charges_lille_${selectedYear}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // ── Calcul emprunt ──
+  const loanSchedule = useMemo(() => {
+    const { amount, monthlyPayment, taeg, startDate, endDate } = LOAN_INITIAL;
+    const monthlyRate = taeg / 12;
+    let balance = amount, schedule = [];
+    let d = new Date(startDate);
+    const end = new Date(endDate);
+    while (balance > 0.01 && d <= end) {
+      const interest = balance * monthlyRate;
+      const principal = monthlyPayment - interest;
+      balance = Math.max(0, balance - principal);
+      schedule.push({ date: new Date(d), interest, principal, balance, payment: monthlyPayment });
+      d.setMonth(d.getMonth() + 1);
+    }
+    return schedule;
+  }, []);
+
+  const getYearlyLoanInterests = (year) =>
+    loanSchedule.filter(s => s.date.getFullYear() === year).reduce((acc, s) => acc + s.interest, 0);
+
+  const getTenantRevenue = (t, year) => {
+    const entryDate = new Date(t.entryDate);
+    const exitDate = t.exitDate ? new Date(t.exitDate) : null;
+    let hc = 0, cc = 0;
+    for (let m = 0; m < 12; m++) {
+      const d = new Date(year, m, 15);
+      if (d >= entryDate && (!exitDate || d <= exitDate)) {
+        const rent = m < 6 ? t.rentHC1 : t.rentHC2;
+        hc += rent; cc += rent + t.charges;
+      }
+    }
+    return { hc, cc };
+  };
+
+  const getYearlyAmortization = (year) =>
+    amortizations.reduce((acc, a) =>
+      year >= a.startYear && year < a.startYear + a.duration ? acc + a.annualAmount : acc, 0);
+
+  // ── Projection fiscale ──
+  const projectionData = useMemo(() => {
+    const results = [];
+    let stockAmortEcartes = 0;
+    for (let y = 2022; y <= 2062; y++) {
+      const dataForYear = yearlyData[y];
+      const overrides = dataForYear?.overrides ?? {};
+      const yearlyInterestsForY = getYearlyLoanInterests(y);
+
+      let projExpensesSum = 0;
+      if (dataForYear?.expenses?.length > 0) {
+        projExpensesSum = dataForYear.expenses.reduce((acc, ex) => acc + (ex.amount || 0), 0);
+      } else {
+        const pastYears = Object.keys(yearlyData).map(Number).filter(k => k < y).sort((a, b) => b - a);
+        let found = false;
+        for (const py of pastYears) {
+          if (yearlyData[py].expenses?.length > 0) {
+            projExpensesSum = yearlyData[py].expenses.reduce((acc, ex) => acc + (ex.amount || 0), 0);
+            found = true; break;
+          }
+        }
+        if (!found) projExpensesSum = DEFAULT_CHARGES.reduce((acc, c) => acc + c.value, 0);
+      }
+
+      const tenants = dataForYear ? dataForYear.tenants : currentData.tenants;
+      const revCC_auto = tenants.reduce((acc, t) => acc + getTenantRevenue(t, y).cc, 0);
+      const amortAnnee_auto = getYearlyAmortization(y);
+
+      const revCC = overrides.revenus ?? revCC_auto;
+      const opCharges = overrides.charges ?? projExpensesSum;
+      const totalChargesForFiscal = opCharges + yearlyInterestsForY;
+      const amortAnnee = overrides.amortAnnee ?? amortAnnee_auto;
+      const stockAnterieur = overrides.stockAnterieur ?? stockAmortEcartes;
+      const profitAvantAmort = revCC - totalChargesForFiscal;
+
+      let amortUtiliseAnnee_auto = 0, amortEcarteAnnee_auto = 0, amortImputeSurStock_auto = 0, resultatFiscal_auto = 0;
+      if (profitAvantAmort > 0) {
+        amortUtiliseAnnee_auto = Math.min(profitAvantAmort, amortAnnee);
+        amortEcarteAnnee_auto = amortAnnee - amortUtiliseAnnee_auto;
+        const resteAImputer = profitAvantAmort - amortUtiliseAnnee_auto;
+        amortImputeSurStock_auto = Math.min(resteAImputer, stockAnterieur);
+        resultatFiscal_auto = resteAImputer - amortImputeSurStock_auto;
+      } else {
+        amortEcarteAnnee_auto = amortAnnee;
+      }
+
+      const amortUtiliseAnnee = overrides.amortUtiliseAnnee ?? amortUtiliseAnnee_auto;
+      const amortEcarteAnnee = overrides.amortEcarteAnnee ?? amortEcarteAnnee_auto;
+      const resultatFiscal = overrides.resultatFiscal ?? resultatFiscal_auto;
+      const impots_auto = resultatFiscal > 0 ? resultatFiscal * (tmi / 100 + 0.172) : 0;
+      const impots = overrides.impots ?? impots_auto;
+      const amortImputeEffective = overrides.resultatFiscal !== undefined
+        ? Math.max(0, (revCC - totalChargesForFiscal) - amortUtiliseAnnee - resultatFiscal)
+        : amortImputeSurStock_auto;
+      const stockFin_auto = stockAnterieur - amortImputeEffective + amortEcarteAnnee;
+      const stockFin = overrides.stockFin ?? stockFin_auto;
+
+      results.push({
+        year: y, revenus: revCC, revenus_auto: revCC_auto,
+        opCharges, interests: yearlyInterestsForY, amortAnnee, amortAnnee_auto,
+        amortUtiliseAnnee, amortUtiliseAnnee_auto, amortEcarteAnnee, amortEcarteAnnee_auto,
+        stockAnterieur, stockFin, stockFin_auto, resultatFiscal, resultatFiscal_auto,
+        impots, impots_auto, overrides
+      });
+      stockAmortEcartes = stockFin;
+    }
+    return results;
+  }, [yearlyData, currentData, amortizations, loanSchedule, tmi]);
+
+  const cashFlowChartData = useMemo(() => {
+    const data = projectionData.map(p => ({
+      year: p.year,
+      cashFlow: p.revenus - p.opCharges - p.interests - p.impots
+    }));
+    const max = Math.max(...data.map(d => Math.abs(d.cashFlow)), 1);
+    return { data, max };
+  }, [projectionData]);
+
+  const currentYearProjection = projectionData.find(p => p.year === selectedYear) || {};
+  const visibleTenants = currentData.tenants;
+  const yearlyAmortizationValue = getYearlyAmortization(selectedYear);
+  const totalRevenueCC = currentYearProjection.revenus || 0;
+  const totalRevenueHC = visibleTenants.reduce((acc, t) => acc + getTenantRevenue(t, selectedYear).hc, 0);
+  const yearlyInterests = getYearlyLoanInterests(selectedYear);
+  const totalExpensesSum = currentData.expenses.reduce((acc, e) => acc + (e.amount || 0), 0);
+  const totalDeductibleCharges = totalExpensesSum + yearlyInterests;
+  const reelTotal = currentYearProjection.impots || 0;
+  const netIncome = totalRevenueHC - totalDeductibleCharges - reelTotal;
+
+  const totalAmortizationUsedGlobal = amortizations.reduce((acc, a) => {
+    const yearsPassed = Math.max(0, Math.min(a.duration, selectedYear - a.startYear + 1));
+    return acc + yearsPassed * a.annualAmount;
+  }, 0);
+  const totalAmortizationGlobal = amortizations.reduce((acc, a) => acc + a.totalToAmortize, 0);
+
+  const amortizationByYearChart = useMemo(() => {
+    const years = Array.from({ length: 30 }, (_, i) => 2022 + i);
+    const data = years.map(y => ({
+      year: y,
+      amount: amortizations.reduce((acc, a) =>
+        y >= a.startYear && y < a.startYear + a.duration ? acc + a.annualAmount : acc, 0)
+    }));
+    const max = Math.max(...data.map(d => d.amount), 1);
+    return { data, max };
+  }, [amortizations]);
+
+  // ── Locataires ──
+  const addTenant = () => {
+    const t = {
+      id: uid(), name: 'Nouveau Locataire',
+      entryDate: `${selectedYear}-01-01`, rentHC1: 450, rentHC2: 450,
+      charges: 60, irl: 141.03, irlDate: `${selectedYear}-Q3`
+    };
+    updateYearlyData({ tenants: [...currentData.tenants, t] });
+  };
+
+  const removeTenant = (id) =>
+    updateYearlyData({ tenants: currentData.tenants.filter(t => t.id !== id) });
+
+  const updateTenant = (id, updates) => {
+    const updated = currentData.tenants.map(t => t.id === id ? { ...t, ...updates } : t);
+    updateYearlyData({ tenants: updated });
+  };
+
+  // ── Amortissements ──
+  const addNewAmortization = (e) => {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    const name = f.get('name'), startYear = parseInt(f.get('startYear'));
+    const total = parseFloat(f.get('total')), duration = parseInt(f.get('duration'));
+    if (name && !isNaN(startYear) && !isNaN(total) && duration > 0) {
+      setAmortizations(prev => [...prev, {
+        id: uid(), type: name, annualAmount: total / duration,
+        totalToAmortize: total, startYear, duration
+      }]);
+      e.target.reset();
+    }
+  };
+
+  const updateAmortization = (id, updates) => {
+    setAmortizations(prev => prev.map(a => {
+      if (a.id !== id) return a;
+      const next = { ...a, ...updates };
+      if (updates.totalToAmortize !== undefined || updates.duration !== undefined)
+        next.annualAmount = next.totalToAmortize / (next.duration || 1);
+      return next;
+    }));
+  };
+
+  const removeAmortization = (id) => setAmortizations(prev => prev.filter(a => a.id !== id));
+
+  // ── Cellule éditable pour projection ──
+  const EditableCell = ({ year, field, value, isOverridden }) => (
+    <td className={`px-2 py-1 relative group ${isOverridden ? 'bg-emerald-50' : ''}`}>
+      <div className="flex items-center gap-1">
+        <input
+          type="number"
+          className="bg-transparent border-none p-0 w-full text-xs font-medium focus:outline-none text-slate-700"
+          value={Math.round(value)}
+          onChange={ev => handleOverrideChange(year, field, ev.target.value)}
+        />
+        {isOverridden && (
+          <button onClick={() => clearOverride(year, field)}
+            className="opacity-0 group-hover:opacity-100 p-0.5 bg-white rounded shadow text-emerald-600 transition-opacity"
+            title="Rétablir calcul auto">
+            <Icon d={ICONS.refresh} size={3} />
+          </button>
+        )}
+      </div>
+    </td>
+  );
+
+  // ── Export données ──
+  const exportAllData = () => {
+    const data = { yearlyData, amortizations, tmi, exportDate: new Date().toISOString() };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = `gestion_lille_backup_${new Date().toISOString().split('T')[0]}.json`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importData = (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (data.yearlyData) setYearlyData(data.yearlyData);
+        if (data.amortizations) setAmortizations(data.amortizations);
+        if (data.tmi) setTmi(data.tmi);
+        alert('Données importées avec succès.');
+      } catch { alert('Fichier invalide.'); }
+    };
+    reader.readAsText(file);
+  };
+
+  const TABS = [
+    { id: 'dashboard', label: 'Vue d\'ensemble', icon: ICONS.euro },
+    { id: 'charges',   label: 'Charges',          icon: ICONS.banknotes },
+    { id: 'locataires', label: 'Locataires',       icon: ICONS.users },
+    { id: 'amort',     label: 'Amortissements',    icon: ICONS.chart },
+    { id: 'fiscal',    label: 'Simulation fiscale', icon: ICONS.calc },
+    { id: 'projection', label: 'Projection',       icon: ICONS.calendar },
+    { id: 'emprunt',   label: 'Emprunt',           icon: ICONS.building },
+  ];
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-20">
+      <input type="file" className="hidden" ref={fileInputRef} onChange={handleFileUpload} accept="image/*,application/pdf" />
+
+      {/* ── HEADER ── */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
+              <Icon d={ICONS.building} size={5} />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-slate-900 leading-tight">Gestion Lille</h1>
+              <p className="text-xs text-slate-400 font-medium">Dashboard LMNP</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-slate-100 rounded-lg px-3 py-1.5">
+              <label className="text-[10px] font-bold text-slate-400 uppercase">TMI</label>
+              <input type="number" value={tmi} onChange={e => setTmi(parseInt(e.target.value) || 0)}
+                className="w-10 bg-transparent border-none text-indigo-600 font-bold focus:outline-none p-0 text-center" />
+              <span className="text-xs font-bold text-slate-400">%</span>
+            </div>
+            <select value={selectedYear} onChange={e => setSelectedYear(parseInt(e.target.value))}
+              className="bg-slate-100 border-none rounded-lg px-3 py-1.5 font-bold text-indigo-600 focus:outline-none text-sm">
+              {[2022,2023,2024,2025,2026,2027,2028,2029,2030].map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+            <button onClick={exportAllData} title="Exporter les données"
+              className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-100 rounded-lg transition-colors">
+              <Icon d={ICONS.download} size={4} />
+            </button>
+            <label className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Importer données">
+              <Icon d={ICONS.upload} size={4} />
+              <input type="file" accept=".json" className="hidden" onChange={importData} />
+            </label>
+          </div>
+        </div>
+
+        {/* Navigation tabs */}
+        <div className="max-w-7xl mx-auto px-4 border-t border-slate-100">
+          <div className="flex gap-0 overflow-x-auto scrollbar-hide">
+            {TABS.map(tab => (
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors ${
+                  activeTab === tab.id
+                    ? 'border-indigo-600 text-indigo-600'
+                    : 'border-transparent text-slate-400 hover:text-slate-700'
+                }`}>
+                <Icon d={tab.icon} size={4} />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 mt-6 space-y-6">
+
+        {/* ══ DASHBOARD ══ */}
+        {activeTab === 'dashboard' && (
+          <>
+            {/* KPIs */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Revenus HC</p>
+                <h3 className="text-2xl font-black text-indigo-600">{fmt(totalRevenueHC)} €</h3>
+                <div className="mt-1 text-[10px] text-slate-400">CC : {fmt(totalRevenueCC)} €</div>
+              </div>
+              <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 group relative">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Charges déductibles</p>
+                <h3 className="text-2xl font-black text-rose-500">{fmt(totalDeductibleCharges)} €</h3>
+                <div className="mt-1 text-[10px] text-slate-400">Dépenses + Intérêts emprunt</div>
+              </div>
+              <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Amort. annuel</p>
+                <h3 className="text-2xl font-black text-orange-500">{fmt(yearlyAmortizationValue)} €</h3>
+                <div className="mt-1 text-[10px] text-slate-400">Impact fiscal</div>
+              </div>
+              <div className="bg-indigo-600 p-5 rounded-2xl shadow-xl shadow-indigo-200 text-white">
+                <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest mb-1">Revenu net estimé</p>
+                <h3 className={`text-2xl font-black ${netIncome < 0 ? 'text-rose-300' : 'text-white'}`}>{fmt(netIncome)} €</h3>
+                <div className="mt-1 text-[10px] text-indigo-200">Après impôts (Réel)</div>
+              </div>
+            </div>
+
+            {/* Cash flow chart */}
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Icon d={ICONS.euro} size={5} cls="text-emerald-500" />
+                  <h2 className="font-bold text-slate-800">Cash Flow annuel après impôts</h2>
+                </div>
+                <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-lg text-xs font-bold border border-emerald-100">
+                  2022 – 2062
+                </span>
+              </div>
+              <div className="p-6 overflow-x-auto">
+                <div className="flex items-end gap-1 h-52 min-w-[900px] relative">
+                  <div className="absolute top-1/2 left-0 right-0 h-px bg-slate-200"></div>
+                  {cashFlowChartData.data.map(d => {
+                    const h = (Math.abs(d.cashFlow) / cashFlowChartData.max) * 45;
+                    const pos = d.cashFlow >= 0;
+                    const sel = d.year === selectedYear;
+                    return (
+                      <div key={d.year} className="flex-1 flex flex-col items-center h-full group relative cursor-pointer"
+                        onClick={() => setSelectedYear(d.year)}>
+                        <div className={`w-full flex h-full relative`}>
+                          <div className={`w-full absolute transition-all duration-200 ${
+                            sel ? (pos ? 'bg-emerald-500 ring-2 ring-emerald-400' : 'bg-rose-500 ring-2 ring-rose-400')
+                                : (pos ? 'bg-emerald-200 group-hover:bg-emerald-300' : 'bg-rose-200 group-hover:bg-rose-300')
+                          } ${pos ? 'bottom-1/2 rounded-t' : 'top-1/2 rounded-b'}`}
+                            style={{ height: `${h}%` }}>
+                          </div>
+                        </div>
+                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10 font-bold pointer-events-none">
+                          {d.year} : {fmt(Math.round(d.cashFlow))} €
+                        </div>
+                        <span className={`text-[9px] font-bold absolute bottom-0 ${sel ? 'text-emerald-700' : 'text-slate-400'}`}>
+                          {d.year % 5 === 0 || sel ? `'${d.year.toString().slice(-2)}` : ''}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-4 flex items-center justify-center gap-6 text-[10px] font-bold uppercase text-slate-400">
+                  <div className="flex items-center gap-2"><div className="w-3 h-3 bg-emerald-300 rounded-sm"></div> Positif</div>
+                  <div className="flex items-center gap-2"><div className="w-3 h-3 bg-rose-300 rounded-sm"></div> Négatif</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Résumé année sélectionnée */}
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm p-6">
+              <h3 className="font-bold text-slate-800 mb-4">Résumé fiscal {selectedYear}</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                {[
+                  { label: 'Résultat fiscal', val: currentYearProjection.resultatFiscal, color: 'text-slate-700' },
+                  { label: 'Impôts (Réel)', val: currentYearProjection.impots, color: 'text-rose-600' },
+                  { label: 'Intérêts emprunt', val: yearlyInterests, color: 'text-rose-500' },
+                  { label: 'Stock amort. fin', val: currentYearProjection.stockFin, color: 'text-orange-600' },
+                ].map(item => (
+                  <div key={item.label} className="bg-slate-50 rounded-xl p-4">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">{item.label}</p>
+                    <p className={`text-xl font-black ${item.color}`}>{fmt(item.val)} €</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ══ CHARGES / DÉPENSES ══ */}
+        {activeTab === 'charges' && (
+          <>
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-2">
+                  <Icon d={ICONS.banknotes} size={5} cls="text-indigo-500" />
+                  <h2 className="font-bold text-slate-800">Charges & Dépenses {selectedYear}</h2>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="bg-indigo-50 text-indigo-700 px-4 py-1.5 rounded-xl text-sm font-black border border-indigo-100">
+                    Total : {fmt(totalExpensesSum)} €
+                  </span>
+                  <button onClick={exportCSV}
+                    className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors">
+                    <Icon d={ICONS.download} size={4} /> CSV
+                  </button>
+                  <button onClick={() => exportToGmail()}
+                    className="p-2 text-slate-400 hover:text-indigo-600 transition-colors" title="Exporter vers Gmail">
+                    <Icon d={ICONS.envelope} size={5} />
+                  </button>
+                  <button onClick={addExpense}
+                    className="flex items-center gap-2 bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-100">
+                    <Icon d={ICONS.plus} size={4} /> Ajouter
+                  </button>
+                </div>
+              </div>
+
+              {/* Intérêts emprunt */}
+              <div className="px-6 py-3 bg-rose-50/50 border-b border-slate-100 flex items-center justify-between">
+                <span className="text-sm text-slate-600">Intérêts bancaires (TAEG 0.9%) — calculés automatiquement</span>
+                <span className="font-black text-rose-500">{fmt(yearlyInterests, 2)} €</span>
+              </div>
+
+              {/* Dépenses */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-slate-50 text-[10px] uppercase font-black text-slate-400 tracking-widest">
+                      <th className="px-6 py-3">Objet</th>
+                      <th className="px-4 py-3">Fournisseur</th>
+                      <th className="px-4 py-3">Montant</th>
+                      <th className="px-4 py-3">Date</th>
+                      <th className="px-4 py-3">Facture</th>
+                      <th className="px-6 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50 text-sm">
+                    {currentData.expenses.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-10 text-center text-slate-400 italic">
+                          Aucune dépense pour {selectedYear}. Cliquez sur "Ajouter" pour commencer.
+                        </td>
+                      </tr>
+                    ) : currentData.expenses.map(e => (
+                      <tr key={e.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-6 py-3">
+                          <input className="bg-transparent border-none p-0 font-bold text-slate-700 w-full focus:outline-none"
+                            value={e.object} onChange={ev => updateExpense(e.id, { object: ev.target.value })} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <input className="bg-transparent border-none p-0 text-slate-600 w-full focus:outline-none"
+                            value={e.provider} onChange={ev => updateExpense(e.id, { provider: ev.target.value })} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            <input type="number" className="bg-transparent border-none p-0 font-black text-rose-500 w-20 focus:outline-none"
+                              value={e.amount} onChange={ev => updateExpense(e.id, { amount: parseFloat(ev.target.value) || 0 })} />
+                            <span className="text-slate-400 text-xs">€</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <input type="date" className="bg-transparent border-none p-0 text-slate-500 focus:outline-none text-sm"
+                            value={e.date} onChange={ev => updateExpense(e.id, { date: ev.target.value })} />
+                        </td>
+                        <td className="px-4 py-3">
+                          {e.attachmentData ? (
+                            <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-2 py-1 rounded text-[10px] border border-emerald-100">
+                              <Icon d={ICONS.paperclip} size={3} />
+                              <span className="max-w-[80px] truncate" title={e.attachmentName}>{e.attachmentName}</span>
+                              <button onClick={() => updateExpense(e.id, { attachmentName: undefined, attachmentData: undefined })}
+                                className="hover:text-rose-500"><Icon d={ICONS.trash} size={3} /></button>
+                            </div>
+                          ) : (
+                            <button onClick={() => { setActiveExpenseId(e.id); fileInputRef.current?.click(); }}
+                              className="text-slate-300 hover:text-indigo-500 transition-colors flex items-center gap-1">
+                              <Icon d={ICONS.upload} size={4} />
+                              <span className="text-[10px]">Joindre</span>
+                            </button>
+                          )}
+                        </td>
+                        <td className="px-6 py-3 text-right">
+                          <div className="flex items-center justify-end gap-3">
+                            <button onClick={() => exportToGmail(e)} className="text-slate-300 hover:text-indigo-600 transition-colors">
+                              <Icon d={ICONS.envelope} size={4} />
+                            </button>
+                            <button onClick={() => removeExpense(e.id)} className="text-slate-300 hover:text-rose-500 transition-colors">
+                              <Icon d={ICONS.trash} size={4} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  {currentData.expenses.length > 0 && (
+                    <tfoot>
+                      <tr className="bg-slate-50 font-bold text-sm">
+                        <td colSpan={2} className="px-6 py-3 text-slate-500">Total dépenses</td>
+                        <td className="px-4 py-3 text-rose-600 font-black">{fmt(totalExpensesSum)} €</td>
+                        <td colSpan={3}></td>
+                      </tr>
+                      <tr className="bg-rose-50 font-bold text-sm">
+                        <td colSpan={2} className="px-6 py-3 text-slate-500">Total déductible (+ intérêts)</td>
+                        <td className="px-4 py-3 text-rose-700 font-black">{fmt(totalDeductibleCharges)} €</td>
+                        <td colSpan={3}></td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ══ LOCATAIRES ══ */}
+        {activeTab === 'locataires' && (
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Icon d={ICONS.users} size={5} cls="text-indigo-500" />
+                <h2 className="font-bold text-slate-800">Locataires — {selectedYear}</h2>
+              </div>
+              <button onClick={addTenant}
+                className="flex items-center gap-2 bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-100">
+                <Icon d={ICONS.plus} size={4} /> Ajouter locataire
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="bg-slate-50 text-[10px] uppercase font-black text-slate-400 tracking-widest">
+                    <th className="px-6 py-3">Nom</th>
+                    <th className="px-4 py-3">Entrée</th>
+                    <th className="px-4 py-3">Sortie</th>
+                    <th className="px-4 py-3">Loyer Jan–Jun</th>
+                    <th className="px-4 py-3">Loyer Jul–Déc</th>
+                    <th className="px-4 py-3">Charges</th>
+                    <th className="px-4 py-3">IRL</th>
+                    <th className="px-6 py-3 text-right">Annuel CC</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {visibleTenants.map(t => {
+                    const rev = getTenantRevenue(t, selectedYear);
+                    return (
+                      <tr key={t.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-3">
+                          <input className="bg-transparent border-none p-0 font-bold text-slate-700 w-full focus:outline-none"
+                            value={t.name} onChange={e => updateTenant(t.id, { name: e.target.value })} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <input type="date" className="bg-transparent border-none p-0 text-slate-500 focus:outline-none text-xs"
+                            value={t.entryDate} onChange={e => updateTenant(t.id, { entryDate: e.target.value })} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <input type="date" className="bg-transparent border-none p-0 text-slate-400 focus:outline-none text-xs"
+                            value={t.exitDate || ''} onChange={e => updateTenant(t.id, { exitDate: e.target.value || undefined })} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            <input type="number" className="bg-transparent border-none p-0 font-bold text-rose-500 w-16 focus:outline-none"
+                              value={t.rentHC1} onChange={e => updateTenant(t.id, { rentHC1: parseFloat(e.target.value) || 0, isModified: true })} />
+                            <span className="text-xs text-slate-400">€</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            <input type="number" className="bg-transparent border-none p-0 font-bold text-rose-500 w-16 focus:outline-none"
+                              value={t.rentHC2} onChange={e => updateTenant(t.id, { rentHC2: parseFloat(e.target.value) || 0, isModified: true })} />
+                            <span className="text-xs text-slate-400">€</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-slate-500">{t.charges} €</td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col">
+                            <input type="number" className="bg-transparent border-none p-0 font-bold text-slate-700 w-16 focus:outline-none text-xs"
+                              value={t.irl} onChange={e => updateTenant(t.id, { irl: parseFloat(e.target.value) || 0 })} />
+                            <span className="text-[10px] text-slate-400">{t.irlDate}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-3 text-right">
+                          <div className="flex items-center justify-end gap-3">
+                            <button onClick={() => removeTenant(t.id)} className="text-slate-300 hover:text-rose-500 transition-colors">
+                              <Icon d={ICONS.trash} size={4} />
+                            </button>
+                            <span className="font-black text-indigo-600">{fmt(rev.cc)} €</span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-indigo-50 font-bold text-sm">
+                    <td colSpan={7} className="px-6 py-3 text-slate-600">Total annuel</td>
+                    <td className="px-6 py-3 text-right font-black text-indigo-700">
+                      {fmt(visibleTenants.reduce((acc, t) => acc + getTenantRevenue(t, selectedYear).cc, 0))} €
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ══ AMORTISSEMENTS ══ */}
+        {activeTab === 'amort' && (
+          <>
+            {/* KPIs */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[
+                { label: 'Annuel ' + selectedYear, val: yearlyAmortizationValue, color: 'text-orange-600' },
+                { label: 'Cumulé', val: totalAmortizationUsedGlobal, color: 'text-orange-500' },
+                { label: 'Restant à utiliser', val: totalAmortizationGlobal - totalAmortizationUsedGlobal, color: 'text-slate-500' },
+                { label: 'Total plan', val: totalAmortizationGlobal, color: 'text-slate-700' },
+              ].map(k => (
+                <div key={k.label} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{k.label}</p>
+                  <p className={`text-2xl font-black ${k.color}`}>{fmt(k.val)} €</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Chart annuel */}
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm p-6">
+              <h3 className="font-bold text-slate-800 mb-4">Évolution annuelle des amortissements (30 ans)</h3>
+              <div className="flex items-end gap-1 h-40 w-full">
+                {amortizationByYearChart.data.map(d => {
+                  const h = (d.amount / amortizationByYearChart.max) * 100;
+                  const sel = d.year === selectedYear;
+                  return (
+                    <div key={d.year} className="flex-1 flex flex-col items-center h-full group relative cursor-pointer"
+                      onClick={() => setSelectedYear(d.year)}>
+                      <div className="w-full flex flex-col justify-end h-full">
+                        <div className={`w-full rounded-t transition-all ${sel ? 'bg-orange-500 ring-2 ring-orange-400' : 'bg-orange-200 group-hover:bg-orange-300'}`}
+                          style={{ height: `${h}%` }}>
+                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10 font-bold pointer-events-none">
+                            {d.year} : {fmt(d.amount)} €
+                          </div>
+                        </div>
+                      </div>
+                      <span className={`text-[9px] font-bold mt-1 ${sel ? 'text-orange-600' : 'text-slate-400'}`}>
+                        {d.year % 5 === 0 || sel ? `'${d.year.toString().slice(-2)}` : ''}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Formulaire + liste */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white rounded-2xl border border-orange-100 shadow-sm p-6">
+                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                  <Icon d={ICONS.plus} size={4} /> Nouveau plan d'amortissement
+                </h3>
+                <form onSubmit={addNewAmortization} className="space-y-3">
+                  <input name="name" placeholder="Désignation" required
+                    className="w-full text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <input name="startYear" type="number" placeholder="Année début" required
+                      className="text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                    <input name="duration" type="number" placeholder="Durée (ans)" required
+                      className="text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  </div>
+                  <input name="total" type="number" placeholder="Montant total à amortir (€)" required
+                    className="w-full text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  <button type="submit"
+                    className="w-full bg-orange-500 text-white text-sm font-bold py-3 rounded-xl hover:bg-orange-600 transition-colors shadow-lg shadow-orange-100">
+                    Ajouter
+                  </button>
+                </form>
+              </div>
+
+              <div className="md:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100">
+                  <h3 className="font-bold text-slate-800">Plans d'amortissement ({amortizations.length})</h3>
+                </div>
+                <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="sticky top-0 bg-white z-10">
+                      <tr className="bg-slate-50 text-[10px] uppercase font-black text-slate-400 tracking-widest">
+                        <th className="px-4 py-3">Désignation</th>
+                        <th className="px-3 py-3">Début</th>
+                        <th className="px-3 py-3">Durée</th>
+                        <th className="px-3 py-3">Total</th>
+                        <th className="px-4 py-3 text-right">Annuel</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {amortizations.map(a => {
+                        const active = selectedYear >= a.startYear && selectedYear < a.startYear + a.duration;
+                        return (
+                          <tr key={a.id} className={`hover:bg-slate-50 transition-colors ${active ? 'bg-orange-50/30' : ''}`}>
+                            <td className="px-4 py-2">
+                              <input className="bg-transparent border-none p-0 font-medium text-slate-700 w-full focus:outline-none text-xs"
+                                value={a.type} onChange={e => updateAmortization(a.id, { type: e.target.value })} />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input type="number" className="bg-transparent border-none p-0 text-slate-500 w-14 focus:outline-none text-xs"
+                                value={a.startYear} onChange={e => updateAmortization(a.id, { startYear: parseInt(e.target.value) || 0 })} />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input type="number" className="bg-transparent border-none p-0 text-slate-500 w-10 focus:outline-none text-xs"
+                                value={a.duration} onChange={e => updateAmortization(a.id, { duration: parseInt(e.target.value) || 1 })} />
+                              <span className="text-slate-400 text-xs"> ans</span>
+                            </td>
+                            <td className="px-3 py-2">
+                              <input type="number" className="bg-transparent border-none p-0 text-slate-600 w-16 focus:outline-none text-xs"
+                                value={Math.round(a.totalToAmortize)} onChange={e => updateAmortization(a.id, { totalToAmortize: parseFloat(e.target.value) || 0 })} />
+                              <span className="text-slate-400 text-xs"> €</span>
+                            </td>
+                            <td className="px-4 py-2 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button onClick={() => removeAmortization(a.id)} className="text-slate-300 hover:text-rose-500 transition-colors">
+                                  <Icon d={ICONS.trash} size={3} />
+                                </button>
+                                <span className={`font-black text-xs ${active ? 'text-orange-600' : 'text-slate-400'}`}>
+                                  {fmt(a.annualAmount, 0)} €
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ══ SIMULATION FISCALE ══ */}
+        {activeTab === 'fiscal' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <Icon d={ICONS.calc} size={6} cls="text-indigo-500" />
+                <h2 className="text-xl font-bold text-slate-800">Simulation LMNP — {selectedYear}</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                {/* Micro-BIC */}
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-bold text-slate-700">Option Micro-BIC</h3>
+                    <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded uppercase">Abattement 50%</span>
+                  </div>
+                  <div className="space-y-3 text-sm">
+                    {[
+                      { label: 'Recettes brutes (CC)', val: totalRevenueCC },
+                      { label: 'Base imposable (50%)', val: totalRevenueCC * 0.5 },
+                    ].map(r => (
+                      <div key={r.label} className="flex justify-between">
+                        <span className="text-slate-500">{r.label}</span>
+                        <span className="font-medium">{fmt(r.val)} €</span>
+                      </div>
+                    ))}
+                    <div className="pt-3 border-t border-slate-200 space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-slate-500 font-bold">Impôt (TMI {tmi}%)</span>
+                        <span className="text-rose-600 font-bold">{fmt(totalRevenueCC * 0.5 * (tmi / 100))} €</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500 font-bold">Prélèvements sociaux (17.2%)</span>
+                        <span className="text-rose-600 font-bold">{fmt(totalRevenueCC * 0.5 * 0.172)} €</span>
+                      </div>
+                    </div>
+                    <div className="pt-4 border-t border-slate-200 flex justify-between items-center">
+                      <span className="font-black text-slate-900">Total imposition</span>
+                      <span className="text-2xl font-black text-indigo-600">{fmt(totalRevenueCC * 0.5 * (tmi / 100 + 0.172))} €</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Réel simplifié */}
+                <div className="bg-indigo-50 p-6 rounded-2xl border border-indigo-100">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-bold text-indigo-900">Option Réel simplifié</h3>
+                    <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded uppercase">Déficit possible</span>
+                  </div>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-indigo-700">Recettes brutes (CC)</span>
+                      <span className="font-medium">{fmt(totalRevenueCC)} €</span>
+                    </div>
+                    <div className="flex justify-between text-rose-600 italic">
+                      <span>- Charges & intérêts</span>
+                      <span>- {fmt(totalDeductibleCharges)} €</span>
+                    </div>
+                    <div className="flex justify-between text-orange-600 italic">
+                      <span>- Amortissement utilisé</span>
+                      <span>- {fmt(currentYearProjection.amortUtiliseAnnee)} €</span>
+                    </div>
+                    <div className="flex justify-between text-orange-500 italic">
+                      <span>- Imputation stock différé</span>
+                      <span>- {fmt(Math.max(0, (currentYearProjection.revenus - currentYearProjection.opCharges - currentYearProjection.interests || 0) - (currentYearProjection.amortUtiliseAnnee || 0) - (currentYearProjection.resultatFiscal || 0)))} €</span>
+                    </div>
+                    <div className="pt-3 border-t border-indigo-200 flex justify-between">
+                      <span className="text-indigo-900 font-bold">Base imposable</span>
+                      <span className="font-black">{fmt(currentYearProjection.resultatFiscal)} €</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-indigo-700">Impôt (TMI {tmi}% + PS 17.2%)</span>
+                      <span className="text-rose-600 font-bold">{fmt(reelTotal)} €</span>
+                    </div>
+                    <div className="pt-3 border-t border-indigo-200 flex justify-between items-center">
+                      <span className="font-black text-indigo-900">Total imposition</span>
+                      <span className="text-2xl font-black text-emerald-600">{fmt(reelTotal)} €</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Comparaison */}
+              <div className="mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                <p className="text-sm font-bold text-slate-700 mb-2">Comparaison des régimes</p>
+                {(() => {
+                  const micro = totalRevenueCC * 0.5 * (tmi / 100 + 0.172);
+                  const reel = reelTotal;
+                  const gain = micro - reel;
+                  return (
+                    <div className="flex items-center gap-4 flex-wrap text-sm">
+                      <span className="text-slate-500">Gain du Réel vs Micro-BIC :</span>
+                      <span className={`font-black text-xl ${gain > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{gain > 0 ? '+' : ''}{fmt(gain)} €</span>
+                      {gain > 0 && <span className="text-emerald-600 text-xs font-bold bg-emerald-50 px-2 py-1 rounded">Le Réel est plus avantageux</span>}
+                      {gain < 0 && <span className="text-rose-600 text-xs font-bold bg-rose-50 px-2 py-1 rounded">Le Micro-BIC est plus avantageux</span>}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* Stock amortissements différés */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+              <h3 className="font-bold text-slate-800 mb-4">Stock d'amortissements différés</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                {[
+                  { label: 'Stock début ' + selectedYear, val: currentYearProjection.stockAnterieur, color: 'text-slate-700' },
+                  { label: 'Amort. écarté', val: currentYearProjection.amortEcarteAnnee, color: 'text-orange-500' },
+                  { label: 'Imputé sur stock', val: Math.max(0, (currentYearProjection.revenus - currentYearProjection.opCharges - currentYearProjection.interests || 0) - (currentYearProjection.amortUtiliseAnnee || 0) - (currentYearProjection.resultatFiscal || 0)), color: 'text-emerald-600' },
+                  { label: 'Stock fin ' + selectedYear, val: currentYearProjection.stockFin, color: 'text-indigo-600' },
+                ].map(k => (
+                  <div key={k.label} className="bg-slate-50 rounded-xl p-4">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">{k.label}</p>
+                    <p className={`text-xl font-black ${k.color}`}>{fmt(k.val)} €</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══ PROJECTION ══ */}
+        {activeTab === 'projection' && (
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Icon d={ICONS.calendar} size={5} cls="text-indigo-500" />
+                <h2 className="font-bold text-slate-800">Projection fiscale 2022 – 2062</h2>
+              </div>
+              <span className="text-xs text-slate-400">Cliquez sur les cellules pour modifier — fond vert = valeur manuelle</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-[11px] table-fixed">
+                <thead className="sticky top-0 bg-white z-10 border-b border-slate-100">
+                  <tr className="bg-slate-50 text-[9px] uppercase font-black text-slate-400 tracking-widest">
+                    <th className="px-4 py-3 w-16">Année</th>
+                    <th className="px-2 py-3">Revenus</th>
+                    <th className="px-2 py-3">Charges</th>
+                    <th className="px-2 py-3">Intérêts</th>
+                    <th className="px-2 py-3">Amort. an</th>
+                    <th className="px-2 py-3">Amort. utilisé</th>
+                    <th className="px-2 py-3">Amort. écarté</th>
+                    <th className="px-2 py-3">Stock préc.</th>
+                    <th className="px-2 py-3">Stock fin</th>
+                    <th className="px-2 py-3">Résultat fiscal</th>
+                    <th className="px-2 py-3">Impôts</th>
+                    <th className="px-4 py-3 text-right">Cash Flow</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {projectionData.map(p => {
+                    const o = p.overrides;
+                    const cf = p.revenus - p.opCharges - p.interests - p.impots;
+                    return (
+                      <tr key={p.year}
+                        className={`hover:bg-slate-50 transition-colors cursor-pointer ${p.year === selectedYear ? 'bg-indigo-50/50' : ''}`}
+                        onClick={() => setSelectedYear(p.year)}>
+                        <td className="px-4 py-2 font-bold text-slate-700 text-xs">{p.year}</td>
+                        <EditableCell year={p.year} field="revenus" value={p.revenus} isOverridden={o.revenus !== undefined} />
+                        <EditableCell year={p.year} field="charges" value={p.opCharges} isOverridden={o.charges !== undefined} />
+                        <td className="px-2 py-1 text-rose-500 font-bold text-xs">{fmt(p.interests)}</td>
+                        <EditableCell year={p.year} field="amortAnnee" value={p.amortAnnee} isOverridden={o.amortAnnee !== undefined} />
+                        <EditableCell year={p.year} field="amortUtiliseAnnee" value={p.amortUtiliseAnnee} isOverridden={o.amortUtiliseAnnee !== undefined} />
+                        <EditableCell year={p.year} field="amortEcarteAnnee" value={p.amortEcarteAnnee} isOverridden={o.amortEcarteAnnee !== undefined} />
+                        <EditableCell year={p.year} field="stockAnterieur" value={p.stockAnterieur} isOverridden={o.stockAnterieur !== undefined} />
+                        <EditableCell year={p.year} field="stockFin" value={p.stockFin} isOverridden={o.stockFin !== undefined} />
+                        <EditableCell year={p.year} field="resultatFiscal" value={p.resultatFiscal} isOverridden={o.resultatFiscal !== undefined} />
+                        <EditableCell year={p.year} field="impots" value={p.impots} isOverridden={o.impots !== undefined} />
+                        <td className={`px-4 py-2 text-right font-black text-xs ${cf >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {fmt(cf)} €
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ══ EMPRUNT ══ */}
+        {activeTab === 'emprunt' && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+              <h2 className="font-bold text-slate-800 mb-4">Paramètres de l'emprunt</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                {[
+                  { label: 'Capital initial', val: fmt(LOAN_INITIAL.amount, 2) + ' €' },
+                  { label: 'Mensualité', val: fmt(LOAN_INITIAL.monthlyPayment, 2) + ' €' },
+                  { label: 'TAEG', val: (LOAN_INITIAL.taeg * 100).toFixed(1) + ' %' },
+                  { label: 'Intérêts ' + selectedYear, val: fmt(yearlyInterests, 2) + ' €' },
+                ].map(k => (
+                  <div key={k.label} className="bg-slate-50 rounded-xl p-4">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">{k.label}</p>
+                    <p className="text-xl font-black text-indigo-600">{k.val}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between cursor-pointer"
+                onClick={() => setShowLoanTable(!showLoanTable)}>
+                <div className="flex items-center gap-2">
+                  <Icon d={ICONS.banknotes} size={5} cls="text-indigo-500" />
+                  <h2 className="font-bold text-slate-800">Tableau d'amortissement détaillé (TAEG 0.9%)</h2>
+                </div>
+                <span className="text-xs font-bold text-indigo-600">{showLoanTable ? 'Masquer' : 'Afficher'}</span>
+              </div>
+              {showLoanTable && (
+                <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="sticky top-0 bg-white z-10 border-b border-slate-100">
+                      <tr className="bg-slate-50 text-[9px] uppercase font-black text-slate-400 tracking-widest">
+                        <th className="px-6 py-3">Mois</th>
+                        <th className="px-4 py-3">Échéance</th>
+                        <th className="px-4 py-3">Intérêts</th>
+                        <th className="px-4 py-3">Capital</th>
+                        <th className="px-6 py-3 text-right">Capital restant</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {loanSchedule.map((s, idx) => (
+                        <tr key={idx} className={`hover:bg-slate-50 ${s.date.getFullYear() === selectedYear ? 'bg-indigo-50/30' : ''}`}>
+                          <td className="px-6 py-2 font-bold text-slate-600">
+                            {s.date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+                          </td>
+                          <td className="px-4 py-2 text-slate-500">{fmt(s.payment, 2)} €</td>
+                          <td className="px-4 py-2 text-rose-500 font-medium">{fmt(s.interest, 2)} €</td>
+                          <td className="px-4 py-2 text-emerald-600 font-medium">{fmt(s.principal, 2)} €</td>
+                          <td className="px-6 py-2 text-right font-black text-slate-700">{fmt(s.balance, 2)} €</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </main>
+
+      <footer className="text-center py-8 mt-12 opacity-30">
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+          Gestion Privée — Résidence Lille · LMNP Réel
+        </p>
+      </footer>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>
